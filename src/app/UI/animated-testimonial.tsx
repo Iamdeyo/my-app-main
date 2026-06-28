@@ -11,16 +11,25 @@ type Testimonial = {
   name: string;
   designation: string;
   rating: number;
-  src: string;
+  src?: string;
 };
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
 export const AnimatedTestimonials = ({
   testimonials,
-  autoplay = false,
 }: {
   testimonials: Testimonial[];
-  autoplay?: boolean;
 }) => {
   const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   const handleNext = () => {
     setActive((prev) => (prev + 1) % testimonials.length);
@@ -34,28 +43,38 @@ export const AnimatedTestimonials = ({
     return index === active;
   };
 
+  // Start on a random review (client-only, to avoid a hydration mismatch).
   useEffect(() => {
-    if (autoplay) {
-      const interval = setInterval(handleNext, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [autoplay]);
+    setActive(Math.floor(Math.random() * testimonials.length));
+  }, [testimonials.length]);
+
+  // Auto-advance every 3s, paused on hover.
+  useEffect(() => {
+    if (paused || testimonials.length <= 1) return;
+    const interval = setInterval(
+      () => setActive((prev) => (prev + 1) % testimonials.length),
+      3000
+    );
+    return () => clearInterval(interval);
+  }, [paused, testimonials.length]);
 
   const randomRotateY = () => {
     return Math.floor(Math.random() * 21) - 10;
   };
 
-  // Seed the random number generator for consistent behavior
-  Math.random();
   return (
-    <div className="mx-auto max-w-sm px-4 py-20 font-sans antialiased md:max-w-4xl md:px-8 lg:px-12">
+    <div
+      className="mx-auto max-w-sm px-4 py-20 font-sans antialiased md:max-w-4xl md:px-8 lg:px-12"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
       <div className="relative grid grid-cols-1 gap-20 md:grid-cols-2">
         <div>
           <div className="relative h-80 w-full">
             <AnimatePresence>
               {testimonials.map((testimonial, index) => (
                 <motion.div
-                  key={testimonial.src}
+                  key={`${testimonial.name}-${index}`}
                   initial={{
                     opacity: 0,
                     scale: 0.9,
@@ -84,14 +103,22 @@ export const AnimatedTestimonials = ({
                   }}
                   className="absolute inset-0 origin-bottom"
                 >
-                  <img
-                    src={testimonial.src}
-                    alt={testimonial.name}
-                    width={500}
-                    height={500}
-                    draggable={false}
-                    className="h-full w-full rounded-3xl object-cover object-center"
-                  />
+                  {testimonial.src ? (
+                    <img
+                      src={testimonial.src}
+                      alt={testimonial.name}
+                      width={500}
+                      height={500}
+                      draggable={false}
+                      className="h-full w-full rounded-3xl object-cover object-center"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center rounded-3xl bg-[var(--color-surface-2)]">
+                      <span className="text-6xl font-bold text-[var(--color-accent)]">
+                        {getInitials(testimonial.name)}
+                      </span>
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
